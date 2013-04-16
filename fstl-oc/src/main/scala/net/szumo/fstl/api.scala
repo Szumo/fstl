@@ -24,6 +24,7 @@ trait StringMatcher[T] {
   def isMatch(s: Iterable[String]) : Boolean
   def apply(s: String): Iterator[T]
   def apply(s: Iterable[String]): Iterator[T]
+  def size: Int
 }
 
 object StringMatcher {
