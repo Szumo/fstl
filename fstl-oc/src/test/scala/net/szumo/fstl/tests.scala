@@ -33,31 +33,13 @@ class BaseApi extends FlatSpec {
     assert(matcher.isMatch(Seq("ala", "nie", "posiada", "kota")) === false)
   }
 
-  "Edge cases" should "work with context" in {
+  "Edge cases" should "work with both case sensitive and insensitive" in {
     val words = Seq("a", "ab", "bc", "bca", "c", "caa")
-    val matcher = StringMatcher.contextMatcher(words, CaseSensitive)
-    assert(matcher("abccab").toList === List(
-      MatchPosition("a", 0, 1),
-      MatchPosition("ab", 0, 2),
-      MatchPosition("bc", 1, 3),
-      MatchPosition("c", 2, 3),
-      MatchPosition("c", 3, 4),
-      MatchPosition("a", 4, 5),
-      MatchPosition("ab", 4, 6)))
+    for (matcher <- Seq(StringMatcher(words, CaseSensitive),StringMatcher(words, CaseInsensitive))) {
+      assert(matcher("abccab").toList === List("a", "ab", "bc", "c", "c", "a", "ab"))
+    }
   }
 
-  "Edge cases" should "work with case insensitive also" in {
-    val words = Seq("a", "ab", "bc", "bca", "C", "caa")
-    val matcher = StringMatcher.contextMatcher(words, CaseInsensitive)
-    assert(matcher("aBCcAB").toList === List(
-      MatchPosition("a", 0, 1),
-      MatchPosition("ab", 0, 2),
-      MatchPosition("bc", 1, 3),
-      MatchPosition("C", 2, 3),
-      MatchPosition("C", 3, 4),
-      MatchPosition("a", 4, 5),
-      MatchPosition("ab", 4, 6)))
-  }
 
   "Alternatives" should "work" in {
     val words = Seq("Szumo ma kota5", "Mary")

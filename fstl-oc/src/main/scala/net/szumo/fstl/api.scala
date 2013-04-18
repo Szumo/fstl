@@ -15,10 +15,6 @@ trait CaseType {
   }
 }
 
-
-
-case class MatchPosition(word:String, start: Int, stop:Int)
-
 trait StringMatcher[T] {
   def isMatch(s: String) : Boolean
   def isMatch(s: Iterable[String]) : Boolean
@@ -40,15 +36,7 @@ object StringMatcher {
   def caseType(caseSensitive: Boolean):CaseType = if (caseSensitive) CaseSensitive else CaseInsensitive
   def apply(words: Iterable[String], caseType: CaseType):StringMatcher[String] = apply(words, caseType, identity _)
   def apppy[T](words: Map[String, T], caseType: CaseType):StringMatcher[T] = apply(words.keys, caseType, w => words(w))
-  def apply[T](words: Iterable[String], caseType: CaseType, func: String => T):StringMatcher[T] = {
-    Node.number = 1
-    new StringMatcherImpl[T, T](words, caseType, func, (output, position) => output)
-  }
-  def contextMatcher(words: Iterable[String], caseType: CaseType):StringMatcher[MatchPosition] = {
-    Node.number = 1
-    new StringMatcherImpl[String, MatchPosition](words, caseType, identity[String],
-    (output, position) => MatchPosition(output, position - output.length(), position))
-  }
+  def apply[T](words: Iterable[String], caseType: CaseType, func: String => T):StringMatcher[T] = new StringMatcherImpl[T](words, caseType, func)
 }
 
 
