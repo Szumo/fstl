@@ -23,13 +23,13 @@ protected object Node {
     val tail = s.tail
     if (tail.isEmpty) result else makeChild(result, tail, caseType)
   }
-  @tailrec
+  /*@tailrec
   def find[Output](node:Node[Output], c:Char):Node[Output] = {
     node.transitions.get(c) match {
       case Some(x) => x
       case None => if (node.fail == node) node else find(node.fail, c)
     }
-  }
+  } */
   @tailrec
   def findExisting[Output](node:Node[Output], s:String):Node[Output] = {
     if (s.isEmpty) node else {
@@ -89,9 +89,28 @@ protected class StringMatcherImpl[Output](words: Iterable[String], caseType: Cas
       lastFound.nonEmpty
     }
     def findNext() {
-      while (lastFound.isEmpty && chars.hasNext) {
-        node = Node.find(node, chars.next())
-        if (node.outputs.nonEmpty) lastFound ++= node.outputs
+      if (lastFound.isEmpty && chars.hasNext) {
+        var c = chars.next()
+        var continue = true
+        do {
+          node.transitions.get(c) match {
+            case Some(x) => {
+              node = x
+              if (node.outputs.nonEmpty) {
+                continue = false
+              } else {
+                if (chars.hasNext) c = chars.next() else continue = false
+              }
+            }
+            case None => if (node.fail == node) {
+              if (chars.hasNext) c = chars.next() else continue = false
+            } else {
+              node = node.fail
+              //if (node.outputs.nonEmpty) continue = false
+            }
+          }
+        } while (continue)
+         lastFound ++= node.outputs
       }
     }
     def next(): Output = {
