@@ -2,115 +2,117 @@ package net.szumo.fstl
 
 import scala.collection.mutable
 import scala.annotation.tailrec
-
-protected final class Node {
-  var outputs = Set.empty[String]
-  var transitions = Map.empty[Char, Node]
-  var fail: Node = null
-  def longString = s"Node[$outputs] transitions $transitions fails to ${if (fail==null) "null" else fail}"
-  def addOutputs(o: Seq[String]) { outputs = outputs ++ o }
-  def size: Int = 1 + transitions.values.toSet[Node].map(t => t.size).sum
-}
-
-protected object Node {
-  @tailrec
-  def makeChild(node: Node, s: String, caseType: CaseType):Node = {
-    val result = node.transitions.getOrElse(s.head, {
-      val newNode = new Node
-      caseType(node, s.head, newNode)
-      newNode
-    })
-    val tail = s.tail
-    if (tail.isEmpty) result else makeChild(result, tail, caseType)
-  }
-  @tailrec
-  def findExisting(node:Node, s:String):Node = {
-    if (s.isEmpty) node else {
-      var current = node
-      try {
-        for (c <- s) {
-          current = current.transitions(c)
-        }
-      } catch {
-        case _:Exception => current = node
-      }
-      if (current != node) current else findExisting(node, s.tail)
-    }
-  }
-}
+import scala.collection.immutable.{TreeMap, WrappedString}
 
 protected class StringMatcherImpl[Output](words: Iterable[String], caseType: CaseType, resultFunc: String => Output) extends StringMatcher[Output] {
+  type Transitions = (Int) => Map[Char,Int]
+  type Outputs = Int => Iterable[String]
+  type Failures = Int => Int
+
   private def join(strings: Iterable[String]) = strings.flatMap(s => s.toIterator).toIterator
   def isMatch(s: String) = !(new State(s.toIterator).isEmpty)
   def isMatch(s: Iterable[String]) = !(new State(join(s)).isEmpty)
   def apply(s: String):Iterator[Output] = new State(s.toIterator)
   def apply(s: Iterable[String]): Iterator[Output] = new State(join(s))
-  def size = root.size
+  val (outputs, failures, transitions, size, root) = makeNodes(words, caseType)
 
-  def makeRoot(words: Iterable[String], caseType: CaseType, resultFunc: String => Output):Node = {
-    val root:Node = new Node()
-    root.fail = root
-    for (word <- words) {
-      Node.makeChild(root, word, caseType).addOutputs(Seq(word))
+  private def makeNodes(words: Iterable[String], caseType: CaseType): (Outputs, Failures, Transitions, Int, Int) = {
+    var outputs = Map.empty[Int, Set[String]].withDefaultValue(Set.empty)
+    val failures = mutable.ArrayBuffer(0)
+    val transitions = mutable.ArrayBuffer[Map[Char,Int]](Map.empty)
+    var lastNode: Int = 0
+    val root = 0
+    def makeNode() = {
+      lastNode = lastNode + 1
+      failures += -1
+      transitions += Map.empty
+      lastNode
     }
-    // set suffixes
-    val queue = mutable.Queue.empty[(String, Node)]
-    root.transitions.values.foreach( t => t.fail = root)
-    queue ++= root.transitions.map( t => (t._1.toString, t._2))
-    while (queue.nonEmpty) {
-      val (prefix, current) = queue.dequeue()
-      for ( (a, node) <- current.transitions) {
-        if (node.fail == null) {
-          val s = prefix+a
-          queue.enqueue( (s, node) )
-          val fail = Node.findExisting(root, s.tail)
-          assert(fail != node)
-          node.fail = fail
-          node.outputs = node.outputs ++ fail.outputs
+    @tailrec
+    def makeChild(node: Int, s: WrappedString, caseType: CaseType):Int = {
+      val head = s.head
+      val tail = s.tail
+      val result = transitions(node).getOrElse(head, {
+        val newNode = makeNode()
+        transitions(node) = transitions(node) ++ caseType.variants(head).map(c => (c,newNode))
+        newNode
+      })
+      if (tail.isEmpty) result else makeChild(result, tail, caseType)
+    }
+    @tailrec
+    def findExisting(node:Int, s: WrappedString):Int = {
+      val tail = s.tail
+      if (tail.isEmpty) node else {
+        var current = Option(node)
+        for (c <- tail) {
+          current match {
+            case Some(x) => current = transitions(x).get(c)
+            case _ => ()
+          }
+        }
+        current match {
+          case Some(x) if x != node => x
+          case _ => findExisting(node, tail)
         }
       }
     }
-    root
+    words.foreach(word => {
+      val child = makeChild(root, word, caseType)
+      outputs = outputs + (child -> (outputs(child) ++ Seq(word)))
+    })
+    // set suffixes
+    val queue = mutable.ArrayBuffer.empty[(String, Int)]
+    transitions(root).values.foreach( t => failures(t) = root)
+    queue ++= transitions(root).map( t => (t._1.toString, t._2))
+    for ( (prefix, current) <- queue) {
+      for ( (a, node) <- transitions(current)) {
+        if (failures(node) == -1) {
+          val s = prefix+a
+          queue += s -> node
+          val fail = findExisting(root, s)
+          failures(node) = fail
+          outputs = outputs + (node -> (outputs(node) ++ outputs(fail)))
+        }
+      }
+    }
+    val result = (outputs, failures.toArray.apply _, transitions , lastNode + 1, root)
+    result
   }
-
-  val root = makeRoot(words, caseType, resultFunc)
-
-  class State(val chars: Iterator[Char]) extends Iterator[Output] {
-    val lastFound = mutable.Queue.empty[Output]
+  sealed class State(val chars: Iterator[Char]) extends Iterator[Output] {
+    var lastFound = mutable.ArrayBuffer.empty[Output]
     var node = root
     def hasNext: Boolean = {
       findNext()
       lastFound.nonEmpty
     }
-    def findNext() {
+    def next(): Output = {
+      findNext()
+      lastFound.remove(0)
+    }
+    private def findNext() {
       if (lastFound.isEmpty && chars.hasNext) {
         var c = chars.next()
         var continue = true
         do {
-          node.transitions.get(c) match {
+          transitions(node).get(c) match {
             case Some(x) => {
               node = x
-              if (node.outputs.nonEmpty) {
+              if (outputs(node).nonEmpty) {
                 continue = false
               } else {
                 if (chars.hasNext) c = chars.next() else continue = false
               }
             }
-            case None => if (node.fail == node) {
+            case None => if (failures(node) == node) {
               if (chars.hasNext) c = chars.next() else continue = false
             } else {
-              node = node.fail
+              node = failures(node)
             }
           }
         } while (continue)
-        lastFound ++= node.outputs.map(resultFunc)
+        lastFound = lastFound ++ outputs(node).map(resultFunc)
       }
-    }
-    def next(): Output = {
-      findNext()
-      lastFound.dequeue()
     }
   }
   override def toString:String = "StringMatcherImpl"
-
 }

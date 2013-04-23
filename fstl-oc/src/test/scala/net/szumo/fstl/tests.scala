@@ -60,7 +60,7 @@ class Timings extends FlatSpec with SequentialNestedSuiteExecution {
   }
   val words = io.Source.fromInputStream(getClass.getResourceAsStream("/texts"),"utf-8").getLines().filter(s => s.nonEmpty).toIndexedSeq
   val word = words(700)
-  val string = "qwerypfm" * 10 + word + "qwerypfm" * 10
+  val string = "qwerypfm" * 5 + word + "qwerypfm" * 5
   "Normal string matching" should "have timings" in {
     timeIt("Normal matching", {
       assert(Some(word) === words.find( s => string.contains(s) ))
