@@ -3,20 +3,20 @@ package net.szumo.fstl
 import scala.collection.mutable
 import scala.annotation.tailrec
 
-protected final class Node[Output] {
-  var outputs = Set.empty[Output]
-  var transitions = Map.empty[Char, Node[Output]]
-  var fail: Node[Output] = null
+protected final class Node {
+  var outputs = Set.empty[String]
+  var transitions = Map.empty[Char, Node]
+  var fail: Node = null
   def longString = s"Node[$outputs] transitions $transitions fails to ${if (fail==null) "null" else fail}"
-  def addOutputs(o: Seq[Output]) { outputs = outputs ++ o }
-  def size: Int = 1 + transitions.values.toSet[Node[Output]].map(t => t.size).sum
+  def addOutputs(o: Seq[String]) { outputs = outputs ++ o }
+  def size: Int = 1 + transitions.values.toSet[Node].map(t => t.size).sum
 }
 
 protected object Node {
   @tailrec
-  def makeChild[Output](node: Node[Output], s: String, caseType: CaseType):Node[Output] = {
+  def makeChild(node: Node, s: String, caseType: CaseType):Node = {
     val result = node.transitions.getOrElse(s.head, {
-      val newNode = new Node[Output]
+      val newNode = new Node
       caseType(node, s.head, newNode)
       newNode
     })
@@ -24,7 +24,7 @@ protected object Node {
     if (tail.isEmpty) result else makeChild(result, tail, caseType)
   }
   @tailrec
-  def findExisting[Output](node:Node[Output], s:String):Node[Output] = {
+  def findExisting(node:Node, s:String):Node = {
     if (s.isEmpty) node else {
       var current = node
       try {
@@ -47,14 +47,14 @@ protected class StringMatcherImpl[Output](words: Iterable[String], caseType: Cas
   def apply(s: Iterable[String]): Iterator[Output] = new State(join(s))
   def size = root.size
 
-  def makeRoot(words: Iterable[String], caseType: CaseType, resultFunc: String => Output):Node[Output] = {
-    val root:Node[Output] = new Node[Output]()
+  def makeRoot(words: Iterable[String], caseType: CaseType, resultFunc: String => Output):Node = {
+    val root:Node = new Node()
     root.fail = root
     for (word <- words) {
-      Node.makeChild(root, word, caseType).addOutputs(Seq(resultFunc(word)))
+      Node.makeChild(root, word, caseType).addOutputs(Seq(word))
     }
     // set suffixes
-    val queue = mutable.Queue.empty[(String, Node[Output])]
+    val queue = mutable.Queue.empty[(String, Node)]
     root.transitions.values.foreach( t => t.fail = root)
     queue ++= root.transitions.map( t => (t._1.toString, t._2))
     while (queue.nonEmpty) {
@@ -103,7 +103,7 @@ protected class StringMatcherImpl[Output](words: Iterable[String], caseType: Cas
             }
           }
         } while (continue)
-        lastFound ++= node.outputs
+        lastFound ++= node.outputs.map(resultFunc)
       }
     }
     def next(): Output = {
