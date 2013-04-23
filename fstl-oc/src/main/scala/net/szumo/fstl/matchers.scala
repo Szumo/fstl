@@ -23,13 +23,6 @@ protected object Node {
     val tail = s.tail
     if (tail.isEmpty) result else makeChild(result, tail, caseType)
   }
-  /*@tailrec
-  def find[Output](node:Node[Output], c:Char):Node[Output] = {
-    node.transitions.get(c) match {
-      case Some(x) => x
-      case None => if (node.fail == node) node else find(node.fail, c)
-    }
-  } */
   @tailrec
   def findExisting[Output](node:Node[Output], s:String):Node[Output] = {
     if (s.isEmpty) node else {
@@ -44,7 +37,17 @@ protected object Node {
       if (current != node) current else findExisting(node, s.tail)
     }
   }
-  def apply[Output](words: Iterable[String], caseType: CaseType, resultFunc: String => Output):Node[Output] = {
+}
+
+protected class StringMatcherImpl[Output](words: Iterable[String], caseType: CaseType, resultFunc: String => Output) extends StringMatcher[Output] {
+  private def join(strings: Iterable[String]) = strings.flatMap(s => s.toIterator).toIterator
+  def isMatch(s: String) = !(new State(s.toIterator).isEmpty)
+  def isMatch(s: Iterable[String]) = !(new State(join(s)).isEmpty)
+  def apply(s: String):Iterator[Output] = new State(s.toIterator)
+  def apply(s: Iterable[String]): Iterator[Output] = new State(join(s))
+  def size = root.size
+
+  def makeRoot(words: Iterable[String], caseType: CaseType, resultFunc: String => Output):Node[Output] = {
     val root:Node[Output] = new Node[Output]()
     root.fail = root
     for (word <- words) {
@@ -60,7 +63,7 @@ protected object Node {
         if (node.fail == null) {
           val s = prefix+a
           queue.enqueue( (s, node) )
-          val fail = findExisting(root, s.tail)
+          val fail = Node.findExisting(root, s.tail)
           assert(fail != node)
           node.fail = fail
           node.outputs = node.outputs ++ fail.outputs
@@ -69,17 +72,8 @@ protected object Node {
     }
     root
   }
-}
 
-protected class StringMatcherImpl[Output](words: Iterable[String], caseType: CaseType, resultFunc: String => Output) extends StringMatcher[Output] {
-  private def join(strings: Iterable[String]) = strings.flatMap(s => s.toIterator).toIterator
-  def isMatch(s: String) = !(new State(s.toIterator).isEmpty)
-  def isMatch(s: Iterable[String]) = !(new State(join(s)).isEmpty)
-  def apply(s: String):Iterator[Output] = new State(s.toIterator)
-  def apply(s: Iterable[String]): Iterator[Output] = new State(join(s))
-  def size = root.size
-
-  val root = Node(words, caseType, resultFunc)
+  val root = makeRoot(words, caseType, resultFunc)
 
   class State(val chars: Iterator[Char]) extends Iterator[Output] {
     val lastFound = mutable.Queue.empty[Output]
@@ -106,11 +100,10 @@ protected class StringMatcherImpl[Output](words: Iterable[String], caseType: Cas
               if (chars.hasNext) c = chars.next() else continue = false
             } else {
               node = node.fail
-              //if (node.outputs.nonEmpty) continue = false
             }
           }
         } while (continue)
-         lastFound ++= node.outputs
+        lastFound ++= node.outputs
       }
     }
     def next(): Output = {
