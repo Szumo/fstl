@@ -2,8 +2,6 @@ package net.szumo.fstl
 
 import StringMatcher.{CaseSensitive, CaseInsensitive}
 import org.scalatest._
-import com.twitter.util.{Duration, Stopwatch}
-import java.util.regex.Pattern
 
 class BaseApi extends FlatSpec {
   "String iterator" should "convert to char iterator correctly" in {
@@ -49,39 +47,3 @@ class BaseApi extends FlatSpec {
 
 }
 
-class Timings extends FlatSpec with SequentialNestedSuiteExecution {
-  var times:Seq[String] = Seq.empty
-  def timeIt[T](message: String, f: => T):T = {
-    val timer = Stopwatch.start()
-    val result = f
-    val elapsed = timer().inMicroseconds
-    times = times ++ Seq( s"Time for $message: $elapsed microseconds")
-    result
-  }
-  val words = io.Source.fromInputStream(getClass.getResourceAsStream("/texts"),"utf-8").getLines().filter(s => s.nonEmpty).toIndexedSeq
-  val word = words(700)
-  val string = "qwerypfm" * 5 + word + "qwerypfm" * 5
-  "Normal string matching" should "have timings" in {
-    timeIt("Normal matching", {
-      assert(Some(word) === words.find( s => string.contains(s) ))
-    })
-  }
-  "Regex" should "have timings" in {
-    val pattern = timeIt("Regex: Creating", Pattern.compile(words.mkString("|"), Pattern.CASE_INSENSITIVE | Pattern.UNICODE_CASE))
-    timeIt("Regex: Getting one match", assert(pattern.matcher(string).find() === true))
-  }
-  "RE2" should "have timings" in {
-    import com.logentries.re2.{RE2, Options}
-    val options = new Options().setMaxMem(128*1024*1024).setNeverCapture(true).setLogErrors(false).setCaseSensitive(false)
-    val regex = timeIt("RE2: Creating", new RE2(words.mkString("|"), options))
-    timeIt("RE2: Getting one match", assert(regex.partialMatch(string)===true))
-    regex.close()
-  }
-  "Matchers" should "have timings" in {
-    val matcher = timeIt("FSTL: Creating", StringMatcher(words, CaseInsensitive))
-    timeIt("FSTL: Getting one match", assert(Some(word) === matcher(string).toStream.headOption))
-  }
-  "Times" should "show" in {
-    println(times.mkString("\n"))
-  }
-}
