@@ -27,15 +27,17 @@ protected object Node {
   @tailrec
   def findExisting(node:Node, s:WrappedString):Node = {
     if (s.isEmpty) node else {
-      var current = node
-      try {
-        for (c <- s) {
-          current = current.transitions(c)
+      var current = Option(node)
+      for (c <- s) {
+        current match {
+          case Some(x) => current = x.transitions.get(c)
+          case None => ()
         }
-      } catch {
-        case _:Exception => current = node
       }
-      if (current != node) current else findExisting(node, s.tail)
+      current match {
+        case Some(x) => x
+        case None => findExisting(node, s.tail)
+      }
     }
   }
 }
@@ -55,21 +57,23 @@ protected class StringMatcherImpl[Output](words: Iterable[String], caseType: Cas
       Node.makeChild(root, word, caseType).addOutputs(Seq(word))
     }
     // set suffixes
-    val queue = mutable.Queue.empty[(String, Node)]
+    val queue = mutable.ArrayBuffer.empty[(String, Node)] // mutable.Queue turned out to be slow
     root.transitions.values.foreach( t => t.fail = root)
     queue ++= root.transitions.map( t => (t._1.toString, t._2))
-    while (queue.nonEmpty) {
-      val (prefix, current) = queue.dequeue()
+    var index = 0
+    while (index < queue.size) {
+      val (prefix, current) = queue(index)
       for ( (a, node) <- current.transitions) {
         if (node.fail == null) {
           val s = prefix+a
-          queue.enqueue( (s, node) )
+          queue += ( (s, node) )
           val fail = Node.findExisting(root, s.tail)
           assert(fail != node)
           node.fail = fail
           node.outputs = node.outputs ++ fail.outputs
         }
       }
+      index += 1
     }
     root
   }
