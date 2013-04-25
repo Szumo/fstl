@@ -1,8 +1,12 @@
 package net.szumo.fstl
 
 import org.scalatest._
+import java.util.regex
+import scala.collection.immutable.BitSet
 
 class BaseApi extends FlatSpec {
+  regex.Pattern
+  BitSet
   /*
   "String iterator" should "convert to char iterator correctly" in {
     val strings = Seq("ala", " ", "ma", " ", "kota")
