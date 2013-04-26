@@ -1,4 +1,4 @@
-package net.szumo.fstl
+package net.szumo.fstl.re
 
 trait FSTLRegex {
   def | (other: FSTLRegex): FSTLRegex

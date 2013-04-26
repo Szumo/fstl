@@ -1,4 +1,4 @@
-name := "fstl-ac"
+name := "fstl-common"
 
 version := "0.6"
 
@@ -9,7 +9,6 @@ organization := "net.szumo"
 scalacOptions ++= Seq("-deprecation", "-unchecked")
 
 libraryDependencies ++= Seq(
-  "net.szumo" %% "fstl-common" % "0.6",
   "org.scalatest" % "scalatest_2.10" % "1.9.1" % "test"
 )
 

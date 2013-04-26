@@ -1,6 +1,6 @@
 package net.szumo.fstl
 
-import StringMatcher.CaseInsensitive
+import net.szumo.fstl.ac.StringMatcher
 import com.twitter.util.Stopwatch
 import java.util.regex.Pattern
 import com.logentries.re2.{RE2, Options}
@@ -34,7 +34,7 @@ object Timings extends App {
     val regex = timeIt("RE2: Creating", new RE2(words.mkString("|"), options))
     timeIt("RE2: Getting one match", assert(regex.partialMatch(string)==true))
     regex.close()
-    val matcher = timeIt("FSTL: Creating", StringMatcher(words, CaseInsensitive))
+    val matcher = timeIt("FSTL: Creating", StringMatcher(words))
     timeIt("FSTL: Getting one match", assert(Some(word) == matcher(string).toStream.headOption))
 
   }

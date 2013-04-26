@@ -1,8 +1,9 @@
-package net.szumo.fstl
+package net.szumo.fstl.ac
 
 import scala.collection.mutable
 import scala.annotation.tailrec
 import scala.collection.immutable.WrappedString
+import net.szumo.fstl.CaseType
 
 protected final class Node {
   var outputs = Set.empty[String]

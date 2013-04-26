@@ -1,6 +1,6 @@
-package net.szumo.fstl
+package net.szumo.fstl.ac
 
-import StringMatcher.{CaseSensitive, CaseInsensitive}
+import net.szumo.fstl.{CaseSensitive, CaseInsensitive}
 import org.scalatest._
 
 class BaseApi extends FlatSpec {

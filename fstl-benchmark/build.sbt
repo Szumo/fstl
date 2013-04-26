@@ -9,7 +9,8 @@ organization := "net.szumo"
 scalacOptions ++= Seq("-deprecation", "-unchecked")
 
 libraryDependencies ++= Seq(
-  "net.szumo" %% "fstl-ac" % "0.5",
+  "net.szumo" %% "fstl-common" % "0.6",
+  "net.szumo" %% "fstl-ac" % "0.6",
   "com.twitter" % "util-core_2.10" % "6.1.0",
   "com.logentries.re2" % "libre2-java" % "1.0"
 )
