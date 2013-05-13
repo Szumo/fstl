@@ -24,16 +24,22 @@ Simplified BNF for regular expression:
 */
 
 
-import scala.util.parsing.combinator.{RegexParsers}
+sealed abstract class Part {
+}
+object Part {
 
-protected sealed abstract class Part
-protected case class CharRange(start: Char, stop: Char)
-protected case class Alternative(options: Seq[Part])
-protected case object StartAnchor extends Part
-protected case object EndAnchor extends Part
+}
+case class CharRange(start: Char, stop: Char) extends Part
+case class Alternative(options: Seq[Part]) extends Part
+case class Repeat(lower: Option[Int], upper: Option[Int], what: Part) extends Part
+case class Literal(char: Char) extends Part
+case class Sequence(elements: Seq[Part]) extends Part
+abstract class Metacharacter( extends Part
+case object StartAnchor extends Part
+case object EndAnchor extends Part
 
-
-protected object FSTLRegexParser extends RegexParsers {
+object FSTLRegexParser extends scala.util.parsing.combinator.RegexParsers {
+  override type Elem = Char
   override def skipWhitespace = false
 
   def apply(input: String): Part = parseAll(RE, input) match {
@@ -41,8 +47,21 @@ protected object FSTLRegexParser extends RegexParsers {
     case failure : NoSuccess => throw new Exception(failure.msg)
   }
 
-  def RE: P = new Parser[Part] { def apply(c:Char) = Literal(c) }
+  def RE = repsep(star | plus | simpleRE, "|") ^^ { case _ => EndAnchor }
+  def simpleRE = elementaryRE.+ ^^ { case elements => Sequence(elements) }
+  def star = elementaryRE.+ <~ "*" ^^ { case elements => Repeat(None, None, Sequence(elements)) }
+  def plus = elementaryRE.+ <~ "+" ^^ { case elements => Repeat(Some(1), None, Sequence(elements)) }
+  def elementaryRE = "." ^^ { case s => Literal(s.head) }
+  def group = "(" ~> RE <~ ")"
+  def stop = "$" ^^ { case _ => EndAnchor }
+  def start = "^" ^^ { case _ => StartAnchor }
+  def char = meta | nonmeta
+  def meta = "\\" ~> ".".r ^^ { case x => Metacharacter(x) }
+
+
   /*
+  def RE: P = { def apply(c:Char) = Literal(c) }
+
   def RE: P =            simpleRE ~ ('|' ~ simpleRE)
   def simpleRE: P =      star | plus | elementaryRE.*
   def star: P =          elementaryRE.* ~ "*"
